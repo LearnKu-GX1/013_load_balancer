@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync/atomic"
+	"time"
 )
 
 // ServerPool 连接池
@@ -30,6 +31,9 @@ func NewServerPool(servers []string) *ServerPool {
 		serverPool.Backends = append(serverPool.Backends, server)
 	}
 
+	// 3. 后端服务的健康检测
+	go serverPool.StartHealthCheck()
+
 	// 3. 返回
 	return serverPool
 }
@@ -37,7 +41,7 @@ func NewServerPool(servers []string) *ServerPool {
 // ForwardRequest 将请求迭代给连接池里的某个
 func (serverPool *ServerPool) ForwardRequest(writer http.ResponseWriter, request *http.Request) {
 
-	attempts := GetAttemptsFromContext(request)
+	attempts := serverPool.GetAttemptsFromContext(request)
 	if attempts > 3 {
 		log.Printf("%s(%s) Max attempts reached, terminating\n", request.RemoteAddr, request.URL.Path)
 		http.Error(writer, "Service not available", http.StatusServiceUnavailable)
@@ -80,15 +84,35 @@ func (serverPool *ServerPool) GetNextPeer() *Server {
 // AttemptNextServer 针对同一个请求尝试不同的后端服务，发生在服务不可用的情况
 func (serverPool *ServerPool) AttemptNextServer(writer http.ResponseWriter, request *http.Request) {
 
-	attempts := GetAttemptsFromContext(request)
+	attempts := serverPool.GetAttemptsFromContext(request)
 	fmt.Printf("\nAttempting %s(%s) , times: %d\n\n", request.RemoteAddr, request.URL.Path, attempts)
 	ctx := context.WithValue(request.Context(), AttemptsKey, attempts+1)
 
 	serverPool.ForwardRequest(writer, request.WithContext(ctx))
 }
 
+// StartHealthCheck 遍历检测所有服务
+func (serverPool *ServerPool) StartHealthCheck() {
+	t := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-t.C:
+			log.Println("Starting health check...")
+			for _, backend := range serverPool.Backends {
+				status := "up"
+				alive := backend.ReachableCheck()
+				if !alive {
+					status = "down"
+				}
+				log.Printf("[%s] is [%s]\n", backend.URL, status)
+			}
+			log.Println("Health check completed")
+		}
+	}
+}
+
 // GetAttemptsFromContext 从 http.Request.Context 中读取 Attempts
-func GetAttemptsFromContext(r *http.Request) int {
+func (serverPool *ServerPool) GetAttemptsFromContext(r *http.Request) int {
 	if attempts, ok := r.Context().Value(AttemptsKey).(int); ok {
 		return attempts
 	}

@@ -68,7 +68,7 @@ func (server *Server) IsAlive() (alive bool) {
 func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *http.Request, e error) {
 
 	log.Printf("Proxy Error:[%s], Error %s\n", server.URL, e.Error())
-	retries := GetRetryFromContext(request)
+	retries := server.getRetryFromContext(request)
 	if retries < 3 {
 		log.Printf("Retry [%s] for %d times\n", server.URL, retries)
 		select {
@@ -85,7 +85,28 @@ func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *htt
 	server.ServerPool.AttemptNextServer(writer, request.WithContext(ctx))
 }
 
-func GetRetryFromContext(r *http.Request) int {
+// ReachableCheck 检测后端服务是否可用
+func (server *Server) ReachableCheck() bool {
+
+	// 1. 设置过期时间并发送请求
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	// Head 方法只获取响应的 header，加快传输速度
+	resp, err := client.Head(server.URL.String())
+
+	// 2. 出错了就设置为 false
+	if err != nil || resp.StatusCode != http.StatusOK {
+		server.SetAlive(false)
+		return false
+	}
+
+	// 3. 请求成功
+	server.SetAlive(true)
+	return true
+}
+
+func (server *Server) getRetryFromContext(r *http.Request) int {
 	if retry, ok := r.Context().Value(RetriesKey).(int); ok {
 		return retry
 	}

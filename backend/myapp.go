@@ -19,6 +19,5 @@ func main() {
 	})
 
 	// 3. 启动服务
-	fmt.Println("Serve at http://localhost:" + serverPort)
 	http.ListenAndServe(":"+serverPort, nil)
 }
