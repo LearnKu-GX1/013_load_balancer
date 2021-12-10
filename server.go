@@ -38,6 +38,7 @@ func NewServer(urlStr string, serverPool *ServerPool) *Server {
 	// 2. 初始化后端服务
 	server := &Server{
 		URL:        url,
+		Alive:      true,
 		ServerPool: serverPool,
 	}
 
@@ -77,6 +78,8 @@ func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *htt
 		}
 		return
 	}
+
+	server.SetAlive(false)
 
 	ctx := context.WithValue(request.Context(), RetriesKey, 1)
 	server.ServerPool.AttemptNextServer(writer, request.WithContext(ctx))

@@ -48,18 +48,33 @@ func (serverPool *ServerPool) ForwardRequest(writer http.ResponseWriter, request
 	peer := serverPool.GetNextPeer()
 	if peer != nil {
 		peer.ReverseProxy.ServeHTTP(writer, request)
-
 		log.Printf("Forward Request to %s, Path is %s\n", peer.URL, request.URL.Path)
-
 		return
 	}
-	http.Error(writer, "Service not available", http.StatusServiceUnavailable)
+	http.Error(writer, "No alive peer available", http.StatusServiceUnavailable)
 }
 
 // GetNextPeer 从连接池里取下一个连接，支持原子性
 func (serverPool *ServerPool) GetNextPeer() *Server {
-	idx := int(atomic.AddUint64(&serverPool.Current, uint64(1)) % uint64(len(serverPool.Backends)))
-	return serverPool.Backends[idx]
+	len := len(serverPool.Backends)
+	nextIdx := int(atomic.AddUint64(&serverPool.Current, uint64(1)) % uint64(len))
+
+	// index 加 len 可以循环整个 Backends 数组
+	loopCounter := nextIdx + len
+	for i := nextIdx; i < loopCounter; i++ {
+
+		// 处理 nextIdx = 4 , len = 5,  i = 6 的情况
+		usedIdx := i % len
+		if serverPool.Backends[usedIdx].IsAlive() {
+			// 只有 nextIdx 不可用时，才需要更新 serverPool.Current 的值
+			if i != nextIdx {
+				atomic.StoreUint64(&serverPool.Current, uint64(usedIdx))
+			}
+			return serverPool.Backends[usedIdx]
+		}
+	}
+
+	return nil
 }
 
 // AttemptNextServer 针对同一个请求尝试不同的后端服务，发生在服务不可用的情况
