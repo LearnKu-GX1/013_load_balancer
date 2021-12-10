@@ -5,6 +5,9 @@ import (
 	"net/http"
 )
 
+// ContextKey 类型作为 r.Context().Value 的 KEY
+type ContextKey string
+
 // 配置信息
 var (
 	serverList = []string{

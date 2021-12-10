@@ -13,7 +13,7 @@ Nginx 常用的几种算法
 
 ---
 
-![](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/29/17125abbccba1a78~tplv-t2oaga2asx-watermark.awebp)
+![](https://cdn.learnku.com/uploads/images/202112/10/1/WNnsme2lgL.png!large)
 
 ---
 
