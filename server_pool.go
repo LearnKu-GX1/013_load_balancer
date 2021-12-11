@@ -94,10 +94,13 @@ func (serverPool *ServerPool) AttemptNextServer(writer http.ResponseWriter, requ
 // StartHealthCheck 遍历检测所有服务
 func (serverPool *ServerPool) StartHealthCheck() {
 
+	// 每隔 5 秒钟检测所有后端服务的可用性
 	for range time.Tick(time.Second * 5) {
 		log.Println("Starting health check...")
 		for _, backend := range serverPool.Backends {
 			status := "up"
+
+			// ReachableCheck 已经设置了请求超时为 2 秒
 			alive := backend.ReachableCheck()
 			if !alive {
 				status = "down"
