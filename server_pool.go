@@ -93,21 +93,18 @@ func (serverPool *ServerPool) AttemptNextServer(writer http.ResponseWriter, requ
 
 // StartHealthCheck 遍历检测所有服务
 func (serverPool *ServerPool) StartHealthCheck() {
-	t := time.NewTicker(5 * time.Second)
-	for {
-		select {
-		case <-t.C:
-			log.Println("Starting health check...")
-			for _, backend := range serverPool.Backends {
-				status := "up"
-				alive := backend.ReachableCheck()
-				if !alive {
-					status = "down"
-				}
-				log.Printf("[%s] is [%s]\n", backend.URL, status)
+
+	for range time.Tick(time.Second * 5) {
+		log.Println("Starting health check...")
+		for _, backend := range serverPool.Backends {
+			status := "up"
+			alive := backend.ReachableCheck()
+			if !alive {
+				status = "down"
 			}
-			log.Println("Health check completed")
+			log.Printf("[%s] is [%s]\n", backend.URL, status)
 		}
+		log.Println("Health check completed")
 	}
 }
 

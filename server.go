@@ -71,11 +71,12 @@ func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *htt
 	retries := server.getRetryFromContext(request)
 	if retries < 3 {
 		log.Printf("Retry [%s] for %d times\n", server.URL, retries)
-		select {
-		case <-time.After(10 * time.Millisecond):
-			ctx := context.WithValue(request.Context(), RetriesKey, retries+1)
-			server.ReverseProxy.ServeHTTP(writer, request.WithContext(ctx))
-		}
+
+		// 休息 10 毫秒（千分之一秒），给后端一点点恢复的时间
+		time.Sleep(10 * time.Millisecond)
+		ctx := context.WithValue(request.Context(), RetriesKey, retries+1)
+		server.ReverseProxy.ServeHTTP(writer, request.WithContext(ctx))
+
 		return
 	}
 
@@ -88,9 +89,9 @@ func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *htt
 // ReachableCheck 检测后端服务是否可用
 func (server *Server) ReachableCheck() bool {
 
-	// 1. 设置过期时间并发送请求
+	// 1. 设置过期时间并发送请求，2 秒足够了
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 2 * time.Second,
 	}
 	// Head 方法只获取响应的 header，加快传输速度
 	resp, err := client.Head(server.URL.String())
