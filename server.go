@@ -65,6 +65,7 @@ func (server *Server) IsAlive() (alive bool) {
 
 func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *http.Request, e error) {
 
+	// 1. 再尝试两次，杜绝暂时性不可用的情况
 	log.Printf("Proxy Error:[%s], Error %s\n", server.URL, e.Error())
 	retries := GetRetriesFromContext(request)
 	if retries < 3 {
@@ -78,8 +79,10 @@ func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *htt
 		return
 	}
 
+	// 2. 如果还出现错误，就设置为服务器不可用
 	server.SetAlive(false)
 
+	// 3. 尝试不同的后端服务
 	ctx := context.WithValue(request.Context(), RetriesKey, 1)
 	server.ServerPool.AttemptNextServer(writer, request.WithContext(ctx))
 }
