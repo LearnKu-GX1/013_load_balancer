@@ -15,8 +15,6 @@ type ServerPool struct {
 	Current  uint64
 }
 
-const AttemptsKey ContextKey = "attempts"
-
 func NewServerPool(servers []string) *ServerPool {
 
 	// 1. 初始化
@@ -84,7 +82,7 @@ func (serverPool *ServerPool) GetNextPeer() *Server {
 // AttemptNextServer 针对同一个请求尝试不同的后端服务，发生在服务不可用的情况
 func (serverPool *ServerPool) AttemptNextServer(writer http.ResponseWriter, request *http.Request) {
 
-	attempts := serverPool.GetAttemptsFromContext(request)
+	attempts := GetAttemptsFromContext(request)
 	fmt.Printf("\nAttempting %s(%s) , times: %d\n\n", request.RemoteAddr, request.URL.Path, attempts)
 	ctx := context.WithValue(request.Context(), AttemptsKey, attempts+1)
 
@@ -109,12 +107,4 @@ func (serverPool *ServerPool) StartHealthCheck() {
 		}
 		log.Println("Health check completed")
 	}
-}
-
-// GetAttemptsFromContext 从 http.Request.Context 中读取 Attempts
-func (serverPool *ServerPool) GetAttemptsFromContext(r *http.Request) int {
-	if attempts, ok := r.Context().Value(AttemptsKey).(int); ok {
-		return attempts
-	}
-	return 1
 }

@@ -27,8 +27,6 @@ type Server struct {
 	Mux sync.RWMutex
 }
 
-const RetriesKey ContextKey = "retries"
-
 // NewServer 通过 URL 来初始化一个后端服务
 func NewServer(urlStr string, serverPool *ServerPool) *Server {
 
@@ -68,7 +66,7 @@ func (server *Server) IsAlive() (alive bool) {
 func (server *Server) ProxyErrorHandler(writer http.ResponseWriter, request *http.Request, e error) {
 
 	log.Printf("Proxy Error:[%s], Error %s\n", server.URL, e.Error())
-	retries := server.getRetryFromContext(request)
+	retries := GetRetriesFromContext(request)
 	if retries < 3 {
 		log.Printf("Retry [%s] for %d times\n", server.URL, retries)
 
@@ -105,11 +103,4 @@ func (server *Server) ReachableCheck() bool {
 	// 3. 请求成功
 	server.SetAlive(true)
 	return true
-}
-
-func (server *Server) getRetryFromContext(r *http.Request) int {
-	if retry, ok := r.Context().Value(RetriesKey).(int); ok {
-		return retry
-	}
-	return 0
 }
