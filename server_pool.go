@@ -39,7 +39,7 @@ func NewServerPool(servers []string) *ServerPool {
 // ForwardRequest 将请求迭代给连接池里的某个
 func (serverPool *ServerPool) ForwardRequest(writer http.ResponseWriter, request *http.Request) {
 
-	attempts := serverPool.GetAttemptsFromContext(request)
+	attempts := GetAttemptsFromContext(request)
 	if attempts > 3 {
 		log.Printf("%s(%s) Max attempts reached, terminating\n", request.RemoteAddr, request.URL.Path)
 		http.Error(writer, "Service not available", http.StatusServiceUnavailable)
